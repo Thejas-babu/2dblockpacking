@@ -1,3 +1,3 @@
 <p>
-<br>2D Blocks Packing solver</br>
+<br><b>2D Blocks Packing solver<b></br>
 </p>
