@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Block Packing Solver</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #4a5568;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .input-section,
+        .output-section {
+            background: #f8fafc;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .input-section h3,
+        .output-section h3 {
+            margin-top: 0;
+            color: #2d3748;
+            font-size: 1.3em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .shapes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .shape-preview {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .shape-canvas {
+            margin: 10px 0;
+        }
+        
+        .results {
+            background: #f0fff4;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #38a169;
+            margin: 20px 0;
+        }
+        
+        .visualization {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        #packingCanvas {
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .predefined-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .predefined-buttons button {
+            background: #4fd1c7;
+            color: #1a202c;
+            font-size: 14px;
+            padding: 10px 15px;
+        }
+        
+        .predefined-buttons button:hover {
+            background: #38b2ac;
+            color: white;
+        }
+        
+        .animation-controls {
+            text-align: center;
+            margin: 15px 0;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧩 2D Block Packing Solver</h1>
+
+        <div class="input-section">
+            <h3>Input Configuration</h3>
+
+            <div class="form-group">
+                <label>Input Mode:</label>
+                <select id="inputMode" onchange="toggleInputMode()">
+                    <option value="manual">Manual Input</option>
+                    <option value="predefined">Predefined Shapes</option>
+                </select>
+            </div>
+
+            <div id="manualInput">
+                <div class="form-group">
+                    <label>Number of Block Types (B):</label>
+                    <input type="number" id="numBlocks" value="7" min="1" max="20">
+                </div>
+
+                <div class="form-group">
+                    <label>Block Definitions (one per line: copies, shape_matrix):</label>
+                    <textarea id="blockInput" rows="10" placeholder="Example:
+1, [[1,1],[1,1]]
+2, [[1],[1],[1],[1]]
+1, [[1,1,0],[0,1,1]]">1, [[1,1],[1,1]]
+2, [[1],[1],[1],[1]]
+1, [[1,1,0],[0,1,1]]
+1, [[1,1],[1,0],[1,0]]
+1, [[1,1,1],[1,0,0]]
+1, [[1,1,0],[0,1,1],[0,0,1]]
+1, [[1,1,1],[0,1,0]]</textarea>
+                </div>
+            </div>
+
+            <div id="predefinedInput" style="display: none;">
+                <div class="predefined-buttons">
+                    <button onclick="loadTetrisShapes()">Tetris Pieces</button>
+                    <button onclick="loadPentominos()">Pentominos</button>
+                    <button onclick="loadMixedShapes()">Mixed Shapes</button>
+                    <button onclick="loadLargeSet()">Large Set</button>
+                </div>
+            </div>
+
+            <button onclick="parseBlocks()">Parse Blocks</button>
+            <button onclick="solveOptimal()">Solve Optimal Packing</button>
+            <button onclick="solveGreedy()">Quick Greedy Solution</button>
+        </div>
+
+        <div id="shapesPreview" class="input-section" style="display: none;">
+            <h3>Block Preview</h3>
+            <div id="shapesGrid" class="shapes-grid"></div>
+        </div>
+
+        <div id="results" class="output-section" style="display: none;">
+            <h3>Results</h3>
+            <div id="stats" class="stats"></div>
+            <div id="csvOutput"></div>
+        </div>
+
+        <div id="visualization" class="visualization" style="display: none;">
+            <div class="animation-controls">
+                <button onclick="animatePacking()">🎬 Animate Placement</button>
+                <button onclick="exportImage()">📸 Export Image</button>
+            </div>
+            <canvas id="packingCanvas"></canvas>
+        </div>
+
+        <div id="errorDiv"></div>
+    </div>
+
+    <script>
+        let blocks = [];
+        let solution = null;
+        let animationFrame = 0;
+        let animationRunning = false;
+
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+            '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D2B4DE'
+        ];
+
+        function toggleInputMode() {
+            const mode = document.getElementById('inputMode').value;
+            const manual = document.getElementById('manualInput');
+            const predefined = document.getElementById('predefinedInput');
+
+            if (mode === 'manual') {
+                manual.style.display = 'block';
+                predefined.style.display = 'none';
+            } else {
+                manual.style.display = 'none';
+                predefined.style.display = 'block';
+            }
+        }
+
+        function loadTetrisShapes() {
+            const tetrisShapes = `1, [[1,1],[1,1]]
+1, [[1],[1],[1],[1]]
+1, [[1,1,0],[0,1,1]]
+1, [[0,1,1],[1,1,0]]
+1, [[1,1,1],[1,0,0]]
+1, [[1,1,1],[0,0,1]]
+1, [[1,1,1],[0,1,0]]`;
+            document.getElementById('blockInput').value = tetrisShapes;
+            document.getElementById('numBlocks').value = 7;
+            parseBlocks(); // Auto-parse after loading
+        }
+
+        function loadPentominos() {
+            const pentominos = `1, [[1,1,1,1,1]]
+1, [[1,1,1,1],[1,0,0,0]]
+1, [[1,1,1],[1,0,1]]
+1, [[1,1,1],[0,1,0],[0,1,0]]
+1, [[1,1,0],[0,1,1],[0,1,0]]
+1, [[1,1],[1,1],[1,0]]
+1, [[1,1,1],[1,0,0],[1,0,0]]
+1, [[0,1,1],[1,1,0],[1,0,0]]
+1, [[1,1,0,0],[0,1,1,1]]
+1, [[1,0],[1,1],[1,1]]
+1, [[1,1,1,1],[0,1,0,0]]
+1, [[1,1,1],[1,0,0],[0,1,0]]`;
+            document.getElementById('blockInput').value = pentominos;
+            document.getElementById('numBlocks').value = 12;
+            parseBlocks(); // Auto-parse after loading
+        }
+
+        function loadMixedShapes() {
+            const mixed = `2, [[1]]
+1, [[1,1]]
+1, [[1,1],[1,1]]
+1, [[1,1,1]]
+1, [[1],[1],[1]]
+1, [[1,1,0],[0,1,1]]
+1, [[1,1,1],[0,1,0]]`;
+            document.getElementById('blockInput').value = mixed;
+            document.getElementById('numBlocks').value = 7;
+            parseBlocks(); // Auto-parse after loading
+        }
+
+        function loadLargeSet() {
+            const large = `3, [[1]]
+2, [[1,1]]
+2, [[1,1],[1,1]]
+1, [[1,1,1]]
+1, [[1],[1],[1]]
+1, [[1,1,0],[0,1,1]]
+1, [[0,1,1],[1,1,0]]
+1, [[1,1,1],[0,1,0]]
+1, [[1,1,1],[1,0,0]]
+1, [[1,1,1],[0,0,1]]`;
+            document.getElementById('blockInput').value = large;
+            document.getElementById('numBlocks').value = 10;
+            parseBlocks(); // Auto-parse after loading
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorDiv');
+            errorDiv.innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => errorDiv.innerHTML = '', 5000);
+        }
+
+        function parseBlocks() {
+            try {
+                blocks = [];
+                const input = document.getElementById('blockInput').value.trim();
+                const lines = input.split('\n');
+
+                for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+                    const line = lines[lineNum].trim();
+                    if (line === '') continue;
+
+                    // Find the comma that separates copies from shape
+                    const commaIndex = line.indexOf(',');
+                    if (commaIndex === -1) {
+                        throw new Error(`Line ${lineNum + 1}: Missing comma separator between copies and shape`);
+                    }
+
+                    const copiesStr = line.substring(0, commaIndex).trim();
+                    const shapeStr = line.substring(commaIndex + 1).trim();
+
+                    const copies = parseInt(copiesStr);
+                    if (isNaN(copies) || copies <= 0) {
+                        throw new Error(`Line ${lineNum + 1}: Invalid number of copies "${copiesStr}"`);
+                    }
+
+                    let shape;
+                    try {
+                        shape = JSON.parse(shapeStr);
+                    } catch (jsonError) {
+                        throw new Error(`Line ${lineNum + 1}: Invalid JSON format for shape. Make sure to use proper array syntax like [[1,1],[1,0]]`);
+                    }
+
+                    // Validate shape
+                    if (!Array.isArray(shape) || shape.length === 0) {
+                        throw new Error(`Line ${lineNum + 1}: Shape must be a non-empty array`);
+                    }
+
+                    if (!Array.isArray(shape[0])) {
+                        throw new Error(`Line ${lineNum + 1}: Shape must be a 2D array (array of arrays)`);
+                    }
+
+                    // Check that all rows have the same length
+                    const width = shape[0].length;
+                    for (let row of shape) {
+                        if (!Array.isArray(row) || row.length !== width) {
+                            throw new Error(`Line ${lineNum + 1}: All rows in shape must have the same length`);
+                        }
+                        // Check that all values are 0 or 1
+                        for (let cell of row) {
+                            if (cell !== 0 && cell !== 1) {
+                                throw new Error(`Line ${lineNum + 1}: Shape cells must be 0 or 1, found: ${cell}`);
+                            }
+                        }
+                    }
+
+                    // Check that shape has at least one filled cell
+                    const hasFilledCell = shape.some(row => row.some(cell => cell === 1));
+                    if (!hasFilledCell) {
+                        throw new Error(`Line ${lineNum + 1}: Shape must have at least one filled cell (1)`);
+                    }
+
+                    // Add each copy as a separate block
+                    for (let i = 0; i < copies; i++) {
+                        blocks.push({
+                            id: blocks.length,
+                            shape: shape,
+                            width: shape[0].length,
+                            height: shape.length,
+                            area: shape.flat().filter(cell => cell === 1).length
+                        });
+                    }
+                }
+
+                if (blocks.length === 0) {
+                    throw new Error('No valid blocks found. Please add at least one block definition.');
+                }
+
+                displayShapePreviews();
+                document.getElementById('shapesPreview').style.display = 'block';
+
+            } catch (error) {
+                showError('Error parsing blocks: ' + error.message);
+            }
+        }
+
+        function displayShapePreviews() {
+            const grid = document.getElementById('shapesGrid');
+            grid.innerHTML = '';
+
+            // Group by unique shapes
+            const uniqueShapes = [];
+            const shapeCounts = {};
+
+            blocks.forEach(block => {
+                const shapeKey = JSON.stringify(block.shape);
+                if (!shapeCounts[shapeKey]) {
+                    shapeCounts[shapeKey] = 0;
+                    uniqueShapes.push(block);
+                }
+                shapeCounts[shapeKey]++;
+            });
+
+            uniqueShapes.forEach((block, idx) => {
+                const div = document.createElement('div');
+                div.className = 'shape-preview';
+
+                const canvas = document.createElement('canvas');
+                canvas.className = 'shape-canvas';
+                const cellSize = 20;
+                canvas.width = block.width * cellSize + 2;
+                canvas.height = block.height * cellSize + 2;
+
+                const ctx = canvas.getContext('2d');
+                ctx.strokeStyle = '#333';
+                ctx.fillStyle = colors[idx % colors.length];
+
+                for (let y = 0; y < block.height; y++) {
+                    for (let x = 0; x < block.width; x++) {
+                        if (block.shape[y][x] === 1) {
+                            ctx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize, cellSize);
+                            ctx.strokeRect(x * cellSize + 1, y * cellSize + 1, cellSize, cellSize);
+                        }
+                    }
+                }
+
+                const shapeKey = JSON.stringify(block.shape);
+                const count = shapeCounts[shapeKey];
+
+                div.innerHTML = `
+                    <div><strong>Shape ${idx + 1}</strong></div>
+                    <div>Copies: ${count}</div>
+                    <div>Size: ${block.width}×${block.height}</div>
+                    <div>Area: ${block.area}</div>
+                `;
+                div.appendChild(canvas);
+                grid.appendChild(div);
+            });
+        }
+
+        function getAllRotations(shape) {
+            const rotations = [shape];
+            let current = shape;
+
+            // Generate 3 more rotations (90°, 180°, 270°)
+            for (let i = 0; i < 3; i++) {
+                current = rotateMatrix(current);
+                rotations.push(current);
+            }
+
+            // Remove duplicates
+            const unique = [];
+            const seen = new Set();
+
+            for (let rotation of rotations) {
+                const key = JSON.stringify(rotation);
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    unique.push(rotation);
+                }
+            }
+
+            return unique;
+        }
+
+        function rotateMatrix(matrix) {
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+            const rotated = Array(cols).fill().map(() => Array(rows).fill(0));
+
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    rotated[j][rows - 1 - i] = matrix[i][j];
+                }
+            }
+
+            return rotated;
+        }
+
+        function canPlace(grid, shape, x, y, gridWidth, gridHeight) {
+            const shapeHeight = shape.length;
+            const shapeWidth = shape[0].length;
+
+            if (x + shapeWidth > gridWidth || y + shapeHeight > gridHeight) {
+                return false;
+            }
+
+            for (let sy = 0; sy < shapeHeight; sy++) {
+                for (let sx = 0; sx < shapeWidth; sx++) {
+                    if (shape[sy][sx] === 1 && grid[y + sy][x + sx] !== 0) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        function placeShape(grid, shape, x, y, blockId) {
+            const shapeHeight = shape.length;
+            const shapeWidth = shape[0].length;
+
+            for (let sy = 0; sy < shapeHeight; sy++) {
+                for (let sx = 0; sx < shapeWidth; sx++) {
+                    if (shape[sy][sx] === 1) {
+                        grid[y + sy][x + sx] = blockId + 1;
+                    }
+                }
+            }
+        }
+
+        function removeShape(grid, shape, x, y) {
+            const shapeHeight = shape.length;
+            const shapeWidth = shape[0].length;
+
+            for (let sy = 0; sy < shapeHeight; sy++) {
+                for (let sx = 0; sx < shapeWidth; sx++) {
+                    if (shape[sy][sx] === 1) {
+                        grid[y + sy][x + sx] = 0;
+                    }
+                }
+            }
+        }
+
+        function solveGreedy() {
+            if (blocks.length === 0) {
+                showError('Please parse blocks first');
+                return;
+            }
+
+            // Sort blocks by area (largest first)
+            const sortedBlocks = [...blocks].sort((a, b) => b.area - a.area);
+
+            // Try different rectangle dimensions
+            const totalArea = blocks.reduce((sum, block) => sum + block.area, 0);
+            let bestSolution = null;
+            let bestRatio = Infinity;
+
+            // Try widths from square root to total area
+            for (let width = Math.ceil(Math.sqrt(totalArea)); width <= totalArea; width++) {
+                const height = Math.ceil(totalArea / width);
+                const result = packGreedy(sortedBlocks, width, height);
+
+                if (result && result.success) {
+                    const actualHeight = result.actualHeight;
+                    const ratio = Math.max(width, actualHeight) / Math.min(width, actualHeight);
+
+                    if (ratio < bestRatio) {
+                        bestRatio = ratio;
+                        bestSolution = {
+                            ...result,
+                            width: width,
+                            height: actualHeight,
+                            aspectRatio: ratio
+                        };
+                    }
+                }
+            }
+
+            if (bestSolution) {
+                solution = bestSolution;
+                displayResults();
+            } else {
+                showError('Could not find a solution with greedy algorithm');
+            }
+        }
+
+        function packGreedy(sortedBlocks, maxWidth, maxHeight) {
+            const grid = Array(maxHeight).fill().map(() => Array(maxWidth).fill(0));
+            const placements = [];
+
+            for (let blockIdx = 0; blockIdx < sortedBlocks.length; blockIdx++) {
+                const block = sortedBlocks[blockIdx];
+                const rotations = getAllRotations(block.shape);
+                let placed = false;
+
+                // Try each rotation
+                for (let rotation of rotations) {
+                    const rotHeight = rotation.length;
+                    const rotWidth = rotation[0].length;
+
+                    // Try to place at each position
+                    for (let y = 0; y <= maxHeight - rotHeight; y++) {
+                        for (let x = 0; x <= maxWidth - rotWidth; x++) {
+                            if (canPlace(grid, rotation, x, y, maxWidth, maxHeight)) {
+                                placeShape(grid, rotation, x, y, block.id);
+                                placements.push({
+                                    blockId: block.id,
+                                    x: x,
+                                    y: y,
+                                    shape: rotation,
+                                    originalShape: block.shape
+                                });
+                                placed = true;
+                                break;
+                            }
+                        }
+                        if (placed) break;
+                    }
+                    if (placed) break;
+                }
+
+                if (!placed) {
+                    return null; // Could not place this block
+                }
+            }
+
+            // Find actual height used
+            let actualHeight = 0;
+            for (let y = 0; y < maxHeight; y++) {
+                for (let x = 0; x < maxWidth; x++) {
+                    if (grid[y][x] !== 0) {
+                        actualHeight = y + 1;
+                        break;
+                    }
+                }
+            }
+
+            return {
+                success: true,
+                grid: grid,
+                placements: placements,
+                actualHeight: actualHeight
+            };
+        }
+
+        function solveOptimal() {
+            if (blocks.length === 0) {
+                showError('Please parse blocks first');
+                return;
+            }
+
+            if (blocks.length > 15) {
+                showError('Too many blocks for optimal solution (max 15). Use Quick Greedy Solution instead.');
+                return;
+            }
+
+            // For optimal solution, try all reasonable rectangle dimensions
+            const totalArea = blocks.reduce((sum, block) => sum + block.area, 0);
+            let bestSolution = null;
+            let bestRatio = Infinity;
+
+            for (let width = 1; width <= totalArea; width++) {
+                if (totalArea % width === 0 || width >= Math.sqrt(totalArea)) {
+                    const height = Math.ceil(totalArea / width);
+                    const result = backtrackSolve(blocks, width, height);
+
+                    if (result && result.success) {
+                        const actualHeight = result.actualHeight;
+                        const ratio = Math.max(width, actualHeight) / Math.min(width, actualHeight);
+
+                        if (ratio < bestRatio) {
+                            bestRatio = ratio;
+                            bestSolution = {
+                                ...result,
+                                width: width,
+                                height: actualHeight,
+                                aspectRatio: ratio
+                            };
+                        }
+
+                        // If we found a perfect square-ish solution, stop
+                        if (ratio <= 1.5) break;
+                    }
+                }
+            }
+
+            if (bestSolution) {
+                solution = bestSolution;
+                displayResults();
+            } else {
+                showError('Could not find an optimal solution');
+            }
+        }
+
+        function backtrackSolve(blockList, width, height, blockIdx = 0, grid = null, placements = []) {
+            if (grid === null) {
+                grid = Array(height).fill().map(() => Array(width).fill(0));
+            }
+
+            if (blockIdx === blockList.length) {
+                // Find actual height used
+                let actualHeight = 0;
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        if (grid[y][x] !== 0) {
+                            actualHeight = y + 1;
+                            break;
+                        }
+                    }
+                }
+
+                return {
+                    success: true,
+                    grid: grid.map(row => [...row]),
+                    placements: [...placements],
+                    actualHeight: actualHeight
+                };
+            }
+
+            const block = blockList[blockIdx];
+            const rotations = getAllRotations(block.shape);
+
+            for (let rotation of rotations) {
+                const rotHeight = rotation.length;
+                const rotWidth = rotation[0].length;
+
+                for (let y = 0; y <= height - rotHeight; y++) {
+                    for (let x = 0; x <= width - rotWidth; x++) {
+                        if (canPlace(grid, rotation, x, y, width, height)) {
+                            // Place the shape
+                            placeShape(grid, rotation, x, y, block.id);
+                            placements.push({
+                                blockId: block.id,
+                                x: x,
+                                y: y,
+                                shape: rotation,
+                                originalShape: block.shape
+                            });
+
+                            // Recurse
+                            const result = backtrackSolve(blockList, width, height, blockIdx + 1, grid, placements);
+                            if (result && result.success) {
+                                return result;
+                            }
+
+                            // Backtrack
+                            removeShape(grid, rotation, x, y);
+                            placements.pop();
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        function displayResults() {
+            if (!solution) return;
+
+            const stats = document.getElementById('stats');
+            stats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${solution.width} × ${solution.height}</div>
+                    <div class="stat-label">Rectangle Size</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${solution.aspectRatio.toFixed(2)}</div>
+                    <div class="stat-label">Aspect Ratio</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${blocks.length}</div>
+                    <div class="stat-label">Blocks Placed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${Math.round((blocks.reduce((sum, b) => sum + b.area, 0) / (solution.width * solution.height)) * 100)}%</div>
+                    <div class="stat-label">Area Efficiency</div>
+                </div>
+            `;
+
+            generateCSV();
+            drawVisualization();
+
+            document.getElementById('results').style.display = 'block';
+            document.getElementById('visualization').style.display = 'block';
+        }
+
+        function generateCSV() {
+            if (!solution) return;
+
+            let csv = 'Block_ID,X,Y,Width,Height,Shape\n';
+
+            solution.placements.forEach(placement => {
+                const width = placement.shape[0].length;
+                const height = placement.shape.length;
+                const shapeStr = JSON.stringify(placement.shape).replace(/,/g, ';');
+                csv += `${placement.blockId},${placement.x},${placement.y},${width},${height},"${shapeStr}"\n`;
+            });
+
+            const csvDiv = document.getElementById('csvOutput');
+            csvDiv.innerHTML = `
+                <h4>CSV Output:</h4>
+                <textarea readonly style="width: 100%; height: 150px; font-family: monospace;">${csv}</textarea>
+                <button onclick="downloadCSV()">📥 Download CSV</button>
+            `;
+        }
+
+        function downloadCSV() {
+            const csv = document.querySelector('#csvOutput textarea').value;
+            const blob = new Blob([csv], {
+                type: 'text/csv'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'block_packing_solution.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function drawVisualization() {
+            if (!solution) return;
+
+            const canvas = document.getElementById('packingCanvas');
+            const ctx = canvas.getContext('2d');
+
+            const cellSize = Math.min(600 / solution.width, 400 / solution.height, 30);
+            canvas.width = solution.width * cellSize + 2;
+            canvas.height = solution.height * cellSize + 2;
+
+            // Clear canvas
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines
+            ctx.strokeStyle = '#e9ecef';
+            ctx.lineWidth = 1;
+
+            for (let x = 0; x <= solution.width; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * cellSize + 1, 1);
+                ctx.lineTo(x * cellSize + 1, solution.height * cellSize + 1);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y <= solution.height; y++) {
+                ctx.beginPath();
+                ctx.moveTo(1, y * cellSize + 1);
+                ctx.lineTo(solution.width * cellSize + 1, y * cellSize + 1);
+                ctx.stroke();
+            }
+
+            // Draw blocks
+            solution.placements.forEach((placement, idx) => {
+                const color = colors[placement.blockId % colors.length];
+                ctx.fillStyle = color;
+                ctx.strokeStyle = '#2d3748';
+                ctx.lineWidth = 2;
+
+                const shape = placement.shape;
+                const shapeHeight = shape.length;
+                const shapeWidth = shape[0].length;
+
+                for (let sy = 0; sy < shapeHeight; sy++) {
+                    for (let sx = 0; sx < shapeWidth; sx++) {
+                        if (shape[sy][sx] === 1) {
+                            const x = (placement.x + sx) * cellSize + 1;
+                            const y = (placement.y + sy) * cellSize + 1;
+
+                            ctx.fillRect(x, y, cellSize, cellSize);
+                            ctx.strokeRect(x, y, cellSize, cellSize);
+                        }
+                    }
+                }
+
+                // Draw block ID
+                ctx.fillStyle = '#2d3748';
+                ctx.font = `${Math.min(cellSize * 0.4, 16)}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const centerX = (placement.x * cellSize) + (shapeWidth * cellSize / 2) + 1;
+                const centerY = (placement.y * cellSize) + (shapeHeight * cellSize / 2) + 1;
+
+                ctx.fillText(placement.blockId, centerX, centerY);
+            });
+        }
+
+        function animatePacking() {
+            if (!solution || animationRunning) return;
+
+            animationRunning = true;
+            animationFrame = 0;
+
+            const canvas = document.getElementById('packingCanvas');
+            const ctx = canvas.getContext('2d');
+            const cellSize = Math.min(600 / solution.width, 400 / solution.height, 30);
+
+            function animateStep() {
+                if (animationFrame > solution.placements.length) {
+                    animationRunning = false;
+                    return;
+                }
+
+                // Clear canvas
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw grid
+                ctx.strokeStyle = '#e9ecef';
+                ctx.lineWidth = 1;
+
+                for (let x = 0; x <= solution.width; x++) {
+                    ctx.beginPath();
+                    ctx.moveTo(x * cellSize + 1, 1);
+                    ctx.lineTo(x * cellSize + 1, solution.height * cellSize + 1);
+                    ctx.stroke();
+                }
+
+                for (let y = 0; y <= solution.height; y++) {
+                    ctx.beginPath();
+                    ctx.moveTo(1, y * cellSize + 1);
+                    ctx.lineTo(solution.width * cellSize + 1, y * cellSize + 1);
+                    ctx.stroke();
+                }
+
+                // Draw blocks up to current frame
+                for (let i = 0; i < Math.min(animationFrame, solution.placements.length); i++) {
+                    const placement = solution.placements[i];
+                    const color = colors[placement.blockId % colors.length];
+                    ctx.fillStyle = color;
+                    ctx.strokeStyle = '#2d3748';
+                    ctx.lineWidth = 2;
+
+                    const shape = placement.shape;
+                    const shapeHeight = shape.length;
+                    const shapeWidth = shape[0].length;
+
+                    for (let sy = 0; sy < shapeHeight; sy++) {
+                        for (let sx = 0; sx < shapeWidth; sx++) {
+                            if (shape[sy][sx] === 1) {
+                                const x = (placement.x + sx) * cellSize + 1;
+                                const y = (placement.y + sy) * cellSize + 1;
+
+                                ctx.fillRect(x, y, cellSize, cellSize);
+                                ctx.strokeRect(x, y, cellSize, cellSize);
+                            }
+                        }
+                    }
+
+                    // Draw block ID
+                    ctx.fillStyle = '#2d3748';
+                    ctx.font = `${Math.min(cellSize * 0.4, 16)}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
+                    const centerX = (placement.x * cellSize) + (shapeWidth * cellSize / 2) + 1;
+                    const centerY = (placement.y * cellSize) + (shapeHeight * cellSize / 2) + 1;
+
+                    ctx.fillText(placement.blockId, centerX, centerY);
+                }
+
+                animationFrame++;
+                setTimeout(animateStep, 800);
+            }
+
+            animateStep();
+        }
+
+        function exportImage() {
+            const canvas = document.getElementById('packingCanvas');
+            const link = document.createElement('a');
+            link.download = 'block_packing_solution.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // Initialize with default shapes
+        window.onload = function() {
+            parseBlocks();
+        };
+    </script>
+</body>
+
+</html>
